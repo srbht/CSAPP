@@ -9,7 +9,8 @@ services:
     branch: main
     buildCommand: npm ci --include=dev && npm run build
     # Brings the database up to date (only new changes run), then starts the app.
-    startCommand: npm run db:migrate && cd apps/api && node dist/main.js
+    # The free plan has 512 MB: Node's memory is kept well below it (otherwise Render stops the app and shows 502).
+    startCommand: npm run db:migrate && cd apps/api && node --max-old-space-size=320 dist/main.js
     healthCheckPath: /ready
     autoDeploy: true
     envVars:
@@ -17,9 +18,6 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      # The free plan has 512 MB: keep Node's memory well below it (otherwise Render stops the app and shows 502).
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=320
       - key: DATABASE_URL
         sync: false
       - key: JWT_ACCESS_SECRET
