@@ -9,8 +9,7 @@ services:
     branch: main
     buildCommand: npm ci --include=dev && npm run build
     # Brings the database up to date (only new changes run), then starts the app.
-    # The free plan has 512 MB: Node's memory is kept well below it (otherwise Render stops the app and shows 502).
-    startCommand: npm run db:migrate && cd apps/api && node --max-old-space-size=320 dist/main.js
+    startCommand: npm run db:migrate && cd apps/api && node dist/main.js
     healthCheckPath: /ready
     autoDeploy: true
     envVars:
