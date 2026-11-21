@@ -1,0 +1,25 @@
+{
+  "name": "cps-school-erp",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/shared",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @cps/shared",
+    "dev:api": "npm run dev -w @cps/api",
+    "dev:web": "npm run dev -w @cps/web",
+    "dev:db": "npm run dev:db -w @cps/api",
+    "sample-data": "npm run sample-data -w @cps/api",
+    "db:migrate": "npm run db:migrate -w @cps/api",
+    "db:seed": "npm run db:seed -w @cps/api",
+    "typecheck": "npm run build:shared && npm run typecheck -w @cps/api && npm run typecheck -w @cps/web",
+    "test": "npm run build:shared && npm run test -w @cps/shared && npm run test -w @cps/api",
+    "build": "npm run build:shared && npm run build -w @cps/api && npm run build -w @cps/web"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

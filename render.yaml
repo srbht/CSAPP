@@ -1,0 +1,31 @@
+# Render Blueprint: one free web service that runs the API and also serves the website (same address).
+# The database is outside Render (Aiven MySQL); paste its URL as DATABASE_URL when Render asks.
+services:
+  - type: web
+    name: cps-erp
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    # Brings the database up to date (only new changes run), then starts the app.
+    startCommand: npm run db:migrate && cd apps/api && node dist/main.js
+    healthCheckPath: /ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: WEB_DIST
+        value: ../web/dist
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SCHOOL_CODE
+        value: CPS
+      - key: STORAGE_DIR
+        value: ./storage
