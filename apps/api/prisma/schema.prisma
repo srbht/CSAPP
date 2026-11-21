@@ -1,0 +1,1381 @@
+// Phase 1 schema: configuration, staff, security, audit.
+// Conventions: docs/03-database-design.md. Table names snake_case, ids BIGINT UNSIGNED.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------------------------------------------------------------- files
+
+model File {
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId      BigInt    @map("school_id") @db.UnsignedBigInt
+  storageDriver String    @map("storage_driver") @db.VarChar(20)
+  storageKey    String    @unique @map("storage_key") @db.VarChar(500)
+  originalName  String    @map("original_name") @db.VarChar(255)
+  mimeType      String    @map("mime_type") @db.VarChar(100)
+  sizeBytes     BigInt    @map("size_bytes") @db.UnsignedBigInt
+  sha256        String    @db.Char(64)
+  purpose       String    @db.VarChar(40)
+  expiresAt     DateTime? @map("expires_at") @db.DateTime(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy     BigInt?   @map("created_by") @db.UnsignedBigInt
+  school        School    @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, purpose])
+  @@map("files")
+}
+
+// ---------------------------------------------------------------- school configuration
+
+model School {
+  id                  BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  code                String   @unique @db.VarChar(20)
+  name                String   @db.VarChar(200)
+  nameHi              String?  @map("name_hi") @db.VarChar(200)
+  motto               String?  @db.VarChar(200)
+  addressLine         String   @map("address_line") @db.VarChar(300)
+  city                String?  @db.VarChar(80)
+  state               String?  @db.VarChar(80)
+  pincode             String?  @db.Char(6)
+  phone               String?  @db.VarChar(20)
+  email               String?  @db.VarChar(150)
+  website             String?  @db.VarChar(200)
+  udiseCode           String?  @map("udise_code") @db.VarChar(20)
+  registrationNo      String?  @map("registration_no") @db.VarChar(80)
+  board               String?  @db.VarChar(80)
+  principalName       String?  @map("principal_name") @db.VarChar(150)
+  principalTitle      String?  @map("principal_title") @db.VarChar(80)
+  logoFileId          BigInt?  @map("logo_file_id") @db.UnsignedBigInt
+  stampFileId         BigInt?  @map("stamp_file_id") @db.UnsignedBigInt
+  principalSignFileId BigInt?  @map("principal_sign_file_id") @db.UnsignedBigInt
+  timezone            String   @default("Asia/Kolkata") @db.VarChar(40)
+  status              String   @default("ACTIVE") @db.VarChar(20)
+  version             Int      @default(1) @db.UnsignedInt
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy           BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy           BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  files          File[]
+  academicYears  AcademicYear[]
+  mediums        Medium[]
+  standards      Standard[]
+  subjects       Subject[]
+  gradingSystems GradingSystem[]
+  policies       Policy[]
+  sequences      NumberSequence[]
+  staff          Staff[]
+  users          User[]
+  roles          Role[]
+  students       Student[]
+  guardians      Guardian[]
+  feePayments    FeePayment[]
+
+  @@map("schools")
+}
+
+model AcademicYear {
+  id            BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId      BigInt    @map("school_id") @db.UnsignedBigInt
+  name          String    @db.VarChar(20)
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime  @map("end_date") @db.Date
+  weeklyOffDays Json      @map("weekly_off_days")
+  status        String    @default("PLANNED") @db.VarChar(20)
+  isCurrent     Boolean   @default(false) @map("is_current")
+  closedAt      DateTime? @map("closed_at") @db.DateTime(3)
+  closedBy      BigInt?   @map("closed_by") @db.UnsignedBigInt
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy     BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy     BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  school      School               @relation(fields: [schoolId], references: [id])
+  terms       AcademicTerm[]
+  classes     SchoolClass[]
+  assignments TeachingAssignment[]
+  policies    Policy[]
+  enrollments StudentEnrollment[]
+  exams       Exam[]
+
+  @@unique([schoolId, name])
+  @@map("academic_years")
+}
+
+model AcademicTerm {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  code           String   @db.VarChar(20)
+  nameEn         String   @map("name_en") @db.VarChar(80)
+  nameHi         String?  @map("name_hi") @db.VarChar(80)
+  startDate      DateTime @map("start_date") @db.Date
+  endDate        DateTime @map("end_date") @db.Date
+  sequence       Int      @db.TinyInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  @@unique([academicYearId, code])
+  @@map("academic_terms")
+}
+
+model Medium {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId     BigInt   @map("school_id") @db.UnsignedBigInt
+  code         String   @db.VarChar(10)
+  nameEn       String   @map("name_en") @db.VarChar(60)
+  nameHi       String?  @map("name_hi") @db.VarChar(60)
+  examNoPrefix String?  @map("exam_no_prefix") @db.VarChar(5)
+  sortOrder    Int      @default(0) @map("sort_order") @db.SmallInt
+  status       String   @default("ACTIVE") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy    BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy    BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school      School              @relation(fields: [schoolId], references: [id])
+  classes     SchoolClass[]
+  subjects    Subject[]
+  policies    Policy[]
+  enrollments StudentEnrollment[]
+
+  @@unique([schoolId, code])
+  @@map("mediums")
+}
+
+model Standard {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId   BigInt   @map("school_id") @db.UnsignedBigInt
+  code       String   @db.VarChar(10)
+  nameEn     String   @map("name_en") @db.VarChar(40)
+  nameHi     String?  @map("name_hi") @db.VarChar(40)
+  levelOrder Int      @map("level_order") @db.SmallInt
+  status     String   @default("ACTIVE") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy  BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy  BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school   School        @relation(fields: [schoolId], references: [id])
+  classes  SchoolClass[]
+  policies Policy[]
+
+  @@unique([schoolId, code])
+  @@map("standards")
+}
+
+/// A standard taught in one medium in one academic year, e.g. ENGLISH-X 2026-27.
+model SchoolClass {
+  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId  BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  mediumId        BigInt   @map("medium_id") @db.UnsignedBigInt
+  standardId      BigInt   @map("standard_id") @db.UnsignedBigInt
+  code            String   @db.VarChar(30)
+  displayName     String   @map("display_name") @db.VarChar(60)
+  gradingSystemId BigInt?  @map("grading_system_id") @db.UnsignedBigInt
+  status          String   @default("ACTIVE") @db.VarChar(20)
+  /// When the Exam Nos of this class were generated (all divisions' lists confirmed).
+  examNosAt       DateTime? @map("exam_nos_at") @db.DateTime(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy       BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy       BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  academicYear  AcademicYear        @relation(fields: [academicYearId], references: [id])
+  medium        Medium              @relation(fields: [mediumId], references: [id])
+  standard      Standard            @relation(fields: [standardId], references: [id])
+  gradingSystem GradingSystem?      @relation(fields: [gradingSystemId], references: [id], onDelete: Restrict)
+  sections      Section[]
+  classSubjects ClassSubject[]
+  policies      Policy[]
+  enrollments   StudentEnrollment[]
+  classFee      ClassFee?
+
+  @@unique([academicYearId, mediumId, standardId])
+  @@index([mediumId, academicYearId])
+  @@map("classes")
+}
+
+model Section {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  classId   BigInt   @map("class_id") @db.UnsignedBigInt
+  name      String   @db.VarChar(10)
+  capacity  Int?     @db.UnsignedSmallInt
+  room      String?  @db.VarChar(30)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  /// Class list: DRAFT → READY (prepared by Headmaster / office / operator) → CONFIRMED (class teacher) → FINAL (Headmaster).
+  listStatus      String    @default("DRAFT") @map("list_status") @db.VarChar(20)
+  listReadyBy     BigInt?   @map("list_ready_by") @db.UnsignedBigInt
+  listReadyAt     DateTime? @map("list_ready_at") @db.DateTime(3)
+  listConfirmedBy BigInt?   @map("list_confirmed_by") @db.UnsignedBigInt
+  listConfirmedAt DateTime? @map("list_confirmed_at") @db.DateTime(3)
+  listFinalBy     BigInt?   @map("list_final_by") @db.UnsignedBigInt
+  listFinalAt     DateTime? @map("list_final_at") @db.DateTime(3)
+  listNote        String?   @map("list_note") @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  schoolClass SchoolClass          @relation(fields: [classId], references: [id])
+  assignments TeachingAssignment[]
+  enrollments StudentEnrollment[]
+  submissions AcademicSubmission[]
+  greensheet  Greensheet?
+  promotionRequests PromotionRequest[]
+  blankSheets       BlankMarkSheet[]
+  monthlyPerformance MonthlyPerformance[]
+
+  @@unique([classId, name])
+  @@map("sections")
+}
+
+model Subject {
+  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId        BigInt   @map("school_id") @db.UnsignedBigInt
+  mediumId        BigInt   @map("medium_id") @db.UnsignedBigInt
+  code            String   @db.VarChar(20)
+  nameEn          String   @map("name_en") @db.VarChar(100)
+  nameHi          String?  @map("name_hi") @db.VarChar(100)
+  shortName       String?  @map("short_name") @db.VarChar(20)
+  subjectType     String   @map("subject_type") @db.VarChar(20)
+  area            String   @default("SCHOLASTIC") @db.VarChar(20)
+  parentSubjectId BigInt?  @map("parent_subject_id") @db.UnsignedBigInt
+  status          String   @default("ACTIVE") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy       BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy       BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  medium        Medium         @relation(fields: [mediumId], references: [id])
+  parent        Subject?       @relation("SubjectPapers", fields: [parentSubjectId], references: [id], onDelete: Restrict)
+  papers        Subject[]      @relation("SubjectPapers")
+  classSubjects ClassSubject[]
+
+  @@unique([mediumId, code])
+  @@map("subjects")
+}
+
+model ClassSubject {
+  id               BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  classId          BigInt   @map("class_id") @db.UnsignedBigInt
+  subjectId        BigInt   @map("subject_id") @db.UnsignedBigInt
+  isOptional       Boolean  @default(false) @map("is_optional")
+  optionalGroup    String?  @map("optional_group") @db.VarChar(30)
+  includeInTotal   Boolean  @default(true) @map("include_in_total")
+  defaultMaxMarks  Decimal? @map("default_max_marks") @db.Decimal(6, 2)
+  defaultPassMarks Decimal? @map("default_pass_marks") @db.Decimal(6, 2)
+  gradingSystemId  BigInt?  @map("grading_system_id") @db.UnsignedBigInt
+  reportRollup     String   @default("SELF") @map("report_rollup") @db.VarChar(20)
+  displayOrder     Int      @default(0) @map("display_order") @db.SmallInt
+  status           String   @default("ACTIVE") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy        BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy        BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  schoolClass   SchoolClass          @relation(fields: [classId], references: [id])
+  subject       Subject              @relation(fields: [subjectId], references: [id])
+  gradingSystem GradingSystem?       @relation(fields: [gradingSystemId], references: [id], onDelete: Restrict)
+  assignments   TeachingAssignment[]
+  examSubjects  ExamSubject[]
+  submissions   AcademicSubmission[]
+  marks         Mark[]
+  monthlyPerformance MonthlyPerformance[]
+
+  @@unique([classId, subjectId])
+  @@map("class_subjects")
+}
+
+model GradingSystem {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId  BigInt   @map("school_id") @db.UnsignedBigInt
+  name      String   @db.VarChar(80)
+  basis     String   @default("PERCENT") @db.VarChar(20)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  bands         GradeBand[]
+  classes       SchoolClass[]
+  classSubjects ClassSubject[]
+
+  @@unique([schoolId, name])
+  @@map("grading_systems")
+}
+
+model GradeBand {
+  id              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  gradingSystemId BigInt   @map("grading_system_id") @db.UnsignedBigInt
+  grade           String   @db.VarChar(5)
+  minPercent      Decimal  @map("min_percent") @db.Decimal(5, 2)
+  maxPercent      Decimal  @map("max_percent") @db.Decimal(5, 2)
+  gradePoint      Decimal? @map("grade_point") @db.Decimal(4, 2)
+  labelEn         String?  @map("label_en") @db.VarChar(60)
+  labelHi         String?  @map("label_hi") @db.VarChar(60)
+  isPass          Boolean  @map("is_pass")
+  sortOrder       Int      @map("sort_order") @db.TinyInt
+  createdAt       DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  gradingSystem GradingSystem @relation(fields: [gradingSystemId], references: [id], onDelete: Cascade)
+
+  @@unique([gradingSystemId, grade])
+  @@map("grade_bands")
+}
+
+model Policy {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId       BigInt   @map("school_id") @db.UnsignedBigInt
+  academicYearId BigInt?  @map("academic_year_id") @db.UnsignedBigInt
+  mediumId       BigInt?  @map("medium_id") @db.UnsignedBigInt
+  standardId     BigInt?  @map("standard_id") @db.UnsignedBigInt
+  classId        BigInt?  @map("class_id") @db.UnsignedBigInt
+  policyKey      String   @map("policy_key") @db.VarChar(60)
+  value          Json
+  /// '*:*:*:*' style key maintained by the service (unique per policy and scope)
+  scopeKey       String   @map("scope_key") @db.VarChar(120)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school       School        @relation(fields: [schoolId], references: [id])
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  medium       Medium?       @relation(fields: [mediumId], references: [id], onDelete: Restrict)
+  standard     Standard?     @relation(fields: [standardId], references: [id], onDelete: Restrict)
+  schoolClass  SchoolClass?  @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, policyKey, scopeKey])
+  @@map("policies")
+}
+
+model NumberSequence {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId  BigInt   @map("school_id") @db.UnsignedBigInt
+  seqKey    String   @map("seq_key") @db.VarChar(60)
+  label     String   @db.VarChar(100)
+  pattern   String   @db.VarChar(60)
+  nextValue BigInt   @map("next_value") @db.UnsignedBigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedBy BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, seqKey])
+  @@map("number_sequences")
+}
+
+// ---------------------------------------------------------------- staff
+
+model Staff {
+  id                 BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId           BigInt    @map("school_id") @db.UnsignedBigInt
+  employeeCode       String    @map("employee_code") @db.VarChar(20)
+  name               String    @db.VarChar(150)
+  nameHi             String?   @map("name_hi") @db.VarChar(150)
+  photoFileId        BigInt?   @map("photo_file_id") @db.UnsignedBigInt
+  mobile             String?   @db.Char(10)
+  email              String?   @db.VarChar(150)
+  addressLine        String?   @map("address_line") @db.VarChar(300)
+  joiningDate        DateTime? @map("joining_date") @db.Date
+  designation        String?   @db.VarChar(60)
+  employmentType     String?   @map("employment_type") @db.VarChar(20)
+  status             String    @default("ACTIVE") @db.VarChar(20)
+  gender             String?   @db.VarChar(10)
+  dob                DateTime? @db.Date
+  fatherOrSpouseName String?   @map("father_or_spouse_name") @db.VarChar(150)
+  altMobile          String?   @map("alt_mobile") @db.Char(10)
+  bloodGroup         String?   @map("blood_group") @db.VarChar(5)
+  employeeType       String?   @map("employee_type") @db.VarChar(20)
+  department         String?   @db.VarChar(60)
+  qualification      String?   @db.VarChar(150)
+  reportingManagerId BigInt?   @map("reporting_manager_id") @db.UnsignedBigInt
+  leavingDate        DateTime? @map("leaving_date") @db.Date
+  remarks            String?   @db.Text
+  monthlySalary      Decimal?  @map("monthly_salary") @db.Decimal(12, 2)
+  salaryMode         String?   @map("salary_mode") @db.VarChar(20)
+  bankAccountHolder  String?   @map("bank_account_holder") @db.VarChar(150)
+  bankName           String?   @map("bank_name") @db.VarChar(100)
+  bankAccountNo      String?   @map("bank_account_no") @db.VarChar(18)
+  bankIfsc           String?   @map("bank_ifsc") @db.Char(11)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy          BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy          BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  school      School               @relation(fields: [schoolId], references: [id])
+  user        User?
+  assignments TeachingAssignment[]
+  documents   StaffDocument[]
+  expenses    Expense[]
+
+  @@unique([schoolId, employeeCode])
+  @@index([schoolId, name])
+  @@map("staff")
+}
+
+model TeachingAssignment {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  staffId        BigInt    @map("staff_id") @db.UnsignedBigInt
+  role           String    @db.VarChar(20)
+  sectionId      BigInt    @map("section_id") @db.UnsignedBigInt
+  classSubjectId BigInt?   @map("class_subject_id") @db.UnsignedBigInt
+  validFrom      DateTime  @map("valid_from") @db.Date
+  validTo        DateTime? @map("valid_to") @db.Date
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  academicYear AcademicYear  @relation(fields: [academicYearId], references: [id])
+  staff        Staff         @relation(fields: [staffId], references: [id])
+  section      Section       @relation(fields: [sectionId], references: [id])
+  classSubject ClassSubject? @relation(fields: [classSubjectId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([staffId, academicYearId, status])
+  @@index([sectionId, role, status])
+  @@map("teaching_assignments")
+}
+
+// ---------------------------------------------------------------- security
+
+model User {
+  id                 BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId           BigInt    @map("school_id") @db.UnsignedBigInt
+  staffId            BigInt?   @unique @map("staff_id") @db.UnsignedBigInt
+  username           String    @db.VarChar(60)
+  email              String?   @db.VarChar(150)
+  mobile             String?   @db.Char(10)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  status             String    @default("ACTIVE") @db.VarChar(20)
+  failedLogins       Int       @default(0) @map("failed_logins") @db.SmallInt
+  lockedUntil        DateTime? @map("locked_until") @db.DateTime(3)
+  lastLoginAt        DateTime? @map("last_login_at") @db.DateTime(3)
+  passwordChangedAt  DateTime? @map("password_changed_at") @db.DateTime(3)
+  preferences        Json?
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy          BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy          BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  staff         Staff?         @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  @@unique([schoolId, username])
+  @@unique([schoolId, mobile])
+  @@map("users")
+}
+
+model Role {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId     BigInt   @map("school_id") @db.UnsignedBigInt
+  code         String   @db.VarChar(40)
+  name         String   @db.VarChar(80)
+  isSystem     Boolean  @default(false) @map("is_system")
+  defaultScope String   @default("SCHOOL") @map("default_scope") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy    BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy    BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school      School           @relation(fields: [schoolId], references: [id])
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([schoolId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id          BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  code        String @unique @db.VarChar(80)
+  module      String @db.VarChar(40)
+  description String @db.VarChar(200)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       BigInt @map("role_id") @db.UnsignedBigInt
+  permissionId BigInt @map("permission_id") @db.UnsignedBigInt
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  userId    BigInt   @map("user_id") @db.UnsignedBigInt
+  roleId    BigInt   @map("role_id") @db.UnsignedBigInt
+  scopeType String   @default("SCHOOL") @map("scope_type") @db.VarChar(20)
+  scopeId   BigInt?  @map("scope_id") @db.UnsignedBigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId, scopeType, scopeId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  userId       BigInt    @map("user_id") @db.UnsignedBigInt
+  familyId     String    @map("family_id") @db.Char(36)
+  tokenHash    String    @unique @map("token_hash") @db.Char(64)
+  expiresAt    DateTime  @map("expires_at") @db.DateTime(3)
+  revokedAt    DateTime? @map("revoked_at") @db.DateTime(3)
+  replacedById BigInt?   @map("replaced_by_id") @db.UnsignedBigInt
+  ip           String?   @db.VarChar(45)
+  userAgent    String?   @map("user_agent") @db.VarChar(300)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Append-only. In production the application DB user is granted INSERT/SELECT only on this table.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId   BigInt   @map("school_id") @db.UnsignedBigInt
+  userId     BigInt?  @map("user_id") @db.UnsignedBigInt
+  action     String   @db.VarChar(40)
+  entityType String   @map("entity_type") @db.VarChar(40)
+  entityId   BigInt?  @map("entity_id") @db.UnsignedBigInt
+  beforeData Json?    @map("before_data")
+  afterData  Json?    @map("after_data")
+  reason     String?  @db.VarChar(1000)
+  requestId  String?  @map("request_id") @db.VarChar(64)
+  ip         String?  @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(300)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([schoolId, entityType, entityId, createdAt])
+  @@index([schoolId, userId, createdAt])
+  @@index([schoolId, createdAt])
+  @@map("audit_logs")
+}
+
+// =====================================================================================================
+// Phase 2: students (docs/03 §3.2). Academic facts attach to the yearly enrollment, never to the student.
+// =====================================================================================================
+
+/// One row per child for life. The full name is stored exactly as the school records it.
+model Student {
+  id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  version             Int       @default(1) @db.UnsignedInt
+  schoolId            BigInt    @map("school_id") @db.UnsignedBigInt
+  studentCode         String    @map("student_code") @db.VarChar(20)
+  admissionFormNo     String?   @map("admission_form_no") @db.VarChar(30)
+  grNo                String?   @map("gr_no") @db.VarChar(30)
+  schoolUid           String?   @map("school_uid") @db.VarChar(40)
+  saralId             String?   @map("saral_id") @db.VarChar(30)
+  apaarId             String?   @map("apaar_id") @db.VarChar(20)
+  /// Permanent Education Number (UDISE+).
+  pen                 String?   @db.VarChar(20)
+  fullName            String    @map("full_name") @db.VarChar(250)
+  fullNameHi          String?   @map("full_name_hi") @db.VarChar(250)
+  surname             String?   @db.VarChar(80)
+  firstName           String?   @map("first_name") @db.VarChar(80)
+  fatherName          String?   @map("father_name") @db.VarChar(120)
+  motherName          String?   @map("mother_name") @db.VarChar(120)
+  gender              String    @db.VarChar(10)
+  dob                 DateTime? @db.Date
+  birthPlace          String?   @map("birth_place") @db.VarChar(100)
+  motherTongue        String?   @map("mother_tongue") @db.VarChar(40)
+  bloodGroup          String?   @map("blood_group") @db.VarChar(5)
+  religion            String?   @db.VarChar(40)
+  category            String?   @db.VarChar(30)
+  caste               String?   @db.VarChar(80)
+  aadhaarLast4        String?   @map("aadhaar_last4") @db.Char(4)
+  addressLine         String?   @map("address_line") @db.VarChar(300)
+  city                String?   @db.VarChar(80)
+  pincode             String?   @db.Char(6)
+  admissionDate       DateTime? @map("admission_date") @db.Date
+  previousSchool      String?   @map("previous_school") @db.VarChar(200)
+  previousClass       String?   @map("previous_class") @db.VarChar(20)
+  previousSchoolYear  String?   @map("previous_school_year") @db.VarChar(9)
+  previousLcNo        String?   @map("previous_lc_no") @db.VarChar(40)
+  previousLcDate      DateTime? @map("previous_lc_date") @db.Date
+  nationality         String?   @default("Indian") @db.VarChar(40)
+  subCaste            String?   @map("sub_caste") @db.VarChar(80)
+  isRte               Boolean   @default(false) @map("is_rte")
+  cwsn                String?   @db.VarChar(60)
+  transportMode       String?   @map("transport_mode") @db.VarChar(30)
+  documents           Json?
+  photoFileId         BigInt?   @map("photo_file_id") @db.UnsignedBigInt
+  identificationMarks String?   @map("identification_marks") @db.VarChar(200)
+  heightCm            Int?      @map("height_cm") @db.UnsignedSmallInt
+  weightKg            Decimal?  @map("weight_kg") @db.Decimal(5, 1)
+  medicalNotes        String?   @map("medical_notes") @db.VarChar(500)
+  emergencyName       String?   @map("emergency_name") @db.VarChar(120)
+  emergencyRelation   String?   @map("emergency_relation") @db.VarChar(40)
+  emergencyMobile     String?   @map("emergency_mobile") @db.Char(10)
+  siblingsInSchool    String?   @map("siblings_in_school") @db.VarChar(300)
+  isBpl               Boolean   @default(false) @map("is_bpl")
+  isMinority          Boolean   @default(false) @map("is_minority")
+  bankAccountNo       String?   @map("bank_account_no") @db.VarChar(18)
+  bankIfsc            String?   @map("bank_ifsc") @db.Char(11)
+  bankName            String?   @map("bank_name") @db.VarChar(100)
+  status              String    @default("ACTIVE") @db.VarChar(20)
+  correctionNote      String?   @map("correction_note") @db.VarChar(500)
+  /// Promoted into Std I / V: a new GR No (new register) is awaited; printed as TEMP.
+  grNoTemp            Boolean   @default(false) @map("gr_no_temp")
+  correctionRequestedAt DateTime? @map("correction_requested_at") @db.DateTime(3)
+  notes               String?   @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy           BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy           BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  school        School                 @relation(fields: [schoolId], references: [id])
+  guardians     StudentGuardian[]
+  enrollments   StudentEnrollment[]
+  statusHistory StudentStatusHistory[]
+  documentFiles StudentDocument[]
+
+  @@unique([schoolId, studentCode])
+  @@unique([schoolId, admissionFormNo])
+  @@unique([schoolId, grNo])
+  @@index([schoolId, fullName])
+  @@index([schoolId, schoolUid])
+  @@map("students")
+}
+
+/// Parents / guardians. Siblings can share a guardian row.
+model Guardian {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId     BigInt   @map("school_id") @db.UnsignedBigInt
+  name         String   @db.VarChar(150)
+  nameHi       String?  @map("name_hi") @db.VarChar(150)
+  mobile       String?  @db.Char(10)
+  altMobile    String?  @map("alt_mobile") @db.Char(10)
+  email        String?  @db.VarChar(150)
+  occupation   String?  @db.VarChar(100)
+  education    String?  @db.VarChar(60)
+  annualIncome String?  @map("annual_income") @db.VarChar(40)
+  whatsapp     String?  @db.Char(10)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy    BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy    BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  school   School            @relation(fields: [schoolId], references: [id])
+  students StudentGuardian[]
+
+  @@index([schoolId, mobile])
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId  BigInt   @map("student_id") @db.UnsignedBigInt
+  guardianId BigInt   @map("guardian_id") @db.UnsignedBigInt
+  relation   String   @db.VarChar(20)
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  student  Student  @relation(fields: [studentId], references: [id])
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@unique([studentId, guardianId])
+  @@index([guardianId])
+  @@map("student_guardians")
+}
+
+/// The student's place in one academic year: class, division, roll no, exam no.
+model StudentEnrollment {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  version        Int       @default(1) @db.UnsignedInt
+  studentId      BigInt    @map("student_id") @db.UnsignedBigInt
+  academicYearId BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  classId        BigInt    @map("class_id") @db.UnsignedBigInt
+  sectionId      BigInt    @map("section_id") @db.UnsignedBigInt
+  mediumId       BigInt    @map("medium_id") @db.UnsignedBigInt
+  rollNo         Int?      @map("roll_no") @db.UnsignedSmallInt
+  examNo         String?   @map("exam_no") @db.VarChar(20)
+  joinedOn       DateTime  @map("joined_on") @db.Date
+  leftOn         DateTime? @map("left_on") @db.Date
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  finalResult    String?   @map("final_result") @db.VarChar(20)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  student      Student             @relation(fields: [studentId], references: [id])
+  academicYear AcademicYear        @relation(fields: [academicYearId], references: [id])
+  schoolClass  SchoolClass         @relation(fields: [classId], references: [id])
+  section      Section             @relation(fields: [sectionId], references: [id])
+  medium       Medium              @relation(fields: [mediumId], references: [id])
+  marks        Mark[]
+  attendance   AttendanceMonthly[]
+  remarks      StudentRemark[]
+  reportCards  ReportCard[]
+  feeLedger    StudentFeeLedger?
+  feePayments  FeePayment[]
+  greensheetResult GreensheetResult?
+
+  @@unique([studentId, academicYearId])
+  @@unique([academicYearId, examNo])
+  @@unique([sectionId, rollNo])
+  @@index([sectionId, status])
+  @@index([classId, status])
+  @@index([academicYearId, mediumId, status])
+  @@map("student_enrollments")
+}
+
+/// Scanned proof documents (birth certificate, Aadhaar, LC …). The file itself lives in `files`.
+model StudentDocument {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId BigInt   @map("student_id") @db.UnsignedBigInt
+  docType   String   @map("doc_type") @db.VarChar(60)
+  fileId    BigInt   @map("file_id") @db.UnsignedBigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId, docType])
+  @@map("student_documents")
+}
+
+/// Append-only: every status change (admitted, left, transferred, re-joined) with a reason.
+model StudentStatusHistory {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  studentId     BigInt   @map("student_id") @db.UnsignedBigInt
+  fromStatus    String?  @map("from_status") @db.VarChar(20)
+  toStatus      String   @map("to_status") @db.VarChar(20)
+  effectiveDate DateTime @map("effective_date") @db.Date
+  reason        String   @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy     BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId, createdAt])
+  @@map("student_status_history")
+}
+
+// =====================================================================================================
+// Phase 3–6: exams, marks, monthly attendance, approval workflow, remarks, report cards (docs/07).
+// =====================================================================================================
+
+/// UT1, Semester I, UT2, Semester II … per academic year. `reportTerm` says which report card it feeds.
+model Exam {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  code           String    @db.VarChar(20)
+  nameEn         String    @map("name_en") @db.VarChar(80)
+  nameHi         String?   @map("name_hi") @db.VarChar(80)
+  kind           String    @db.VarChar(20)
+  reportTerm     String?   @map("report_term") @db.VarChar(10)
+  sequence       Int       @db.TinyInt
+  marksDueDate   DateTime? @map("marks_due_date") @db.Date
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  academicYear AcademicYear         @relation(fields: [academicYearId], references: [id])
+  subjects     ExamSubject[]
+  submissions  AcademicSubmission[]
+  marks        Mark[]
+
+  @@unique([academicYearId, code])
+  @@map("exams")
+  blankSheets BlankMarkSheet[]
+}
+
+/// Maximum marks of one class subject in one exam. max2 is used by semester exams (Formative + Summative).
+model ExamSubject {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  examId         BigInt   @map("exam_id") @db.UnsignedBigInt
+  classSubjectId BigInt   @map("class_subject_id") @db.UnsignedBigInt
+  max1           Decimal  @db.Decimal(6, 2)
+  max2           Decimal? @db.Decimal(6, 2)
+  /// Greensheet parts [{key, max, countAs?}]; max1/max2 are their Formative / Summative sums.
+  parts          Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  classSubject ClassSubject @relation(fields: [classSubjectId], references: [id])
+
+  @@unique([examId, classSubjectId])
+  @@map("exam_subjects")
+}
+
+/// One unit of work that goes through Operator → Subject Teacher → Class Teacher → Headmaster.
+/// MARKS: one exam · division · subject.  ATTENDANCE: one division · month.
+model AcademicSubmission {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  version        Int       @default(1) @db.UnsignedInt
+  academicYearId BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  sectionId      BigInt    @map("section_id") @db.UnsignedBigInt
+  recordType     String    @map("record_type") @db.VarChar(20)
+  examId         BigInt?   @map("exam_id") @db.UnsignedBigInt
+  classSubjectId BigInt?   @map("class_subject_id") @db.UnsignedBigInt
+  period         String?   @db.Char(7)
+  unitKey        String    @unique @map("unit_key") @db.VarChar(80)
+  stage          String    @default("OPERATOR") @db.VarChar(30)
+  status         String    @default("DRAFT") @db.VarChar(30)
+  /// Mark sheets: the step that sent it back to this one (status RETURNED).
+  returnedFrom    String?   @map("returned_from") @db.VarChar(30)
+  /// Mark sheets: parts approved early and locked (["OBT"] once the unit test is approved).
+  lockedParts    Json?     @map("locked_parts")
+  revision       Int       @default(1) @db.UnsignedInt
+  workingDays    Decimal?  @map("working_days") @db.Decimal(4, 1)
+  submittedBy    BigInt?   @map("submitted_by") @db.UnsignedBigInt
+  submittedAt    DateTime? @map("submitted_at") @db.DateTime(3)
+  approvedBy     BigInt?   @map("approved_by") @db.UnsignedBigInt
+  approvedAt     DateTime? @map("approved_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  section      Section              @relation(fields: [sectionId], references: [id])
+  exam         Exam?                @relation(fields: [examId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  classSubject ClassSubject?        @relation(fields: [classSubjectId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  marks        Mark[]
+  attendance   AttendanceMonthly[]
+  actions      VerificationAction[]
+
+  @@index([academicYearId, recordType, stage])
+  @@index([sectionId, recordType])
+  @@index([examId])
+  @@map("academic_submissions")
+}
+
+/// One student's marks in one exam subject, with its own verification state (partial rejection).
+model Mark {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  version        Int      @default(1) @db.UnsignedInt
+  submissionId   BigInt   @map("submission_id") @db.UnsignedBigInt
+  enrollmentId   BigInt   @map("enrollment_id") @db.UnsignedBigInt
+  examId         BigInt   @map("exam_id") @db.UnsignedBigInt
+  classSubjectId BigInt   @map("class_subject_id") @db.UnsignedBigInt
+  marks1         Decimal? @db.Decimal(6, 2)
+  marks2         Decimal? @db.Decimal(6, 2)
+  /// Greensheet part values {OBS: 5, ORAL: 7, …}; marks1 = Formative total, marks2 = Summative total.
+  parts          Json?
+  absent         Boolean  @default(false)
+  rowStatus      String   @default("PENDING") @map("row_status") @db.VarChar(20)
+  passedStage    String   @default("OPERATOR") @map("passed_stage") @db.VarChar(30)
+  verifiedHash   String?  @map("verified_hash") @db.Char(64)
+  rejectReason   String?  @map("reject_reason") @db.VarChar(300)
+  rejectedStage  String?  @map("rejected_stage") @db.VarChar(30)
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  submission   AcademicSubmission @relation(fields: [submissionId], references: [id])
+  enrollment   StudentEnrollment  @relation(fields: [enrollmentId], references: [id])
+  exam         Exam               @relation(fields: [examId], references: [id])
+  classSubject ClassSubject       @relation(fields: [classSubjectId], references: [id])
+
+  @@unique([submissionId, enrollmentId])
+  @@unique([examId, classSubjectId, enrollmentId])
+  @@index([enrollmentId])
+  @@map("marks")
+}
+
+/// Monthly attendance: days present for one student in one month (working days are on the submission).
+model AttendanceMonthly {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  version       Int      @default(1) @db.UnsignedInt
+  submissionId  BigInt   @map("submission_id") @db.UnsignedBigInt
+  enrollmentId  BigInt   @map("enrollment_id") @db.UnsignedBigInt
+  period        String   @db.Char(7)
+  presentDays   Decimal? @map("present_days") @db.Decimal(4, 1)
+  rowStatus     String   @default("PENDING") @map("row_status") @db.VarChar(20)
+  passedStage   String   @default("OPERATOR") @map("passed_stage") @db.VarChar(30)
+  verifiedHash  String?  @map("verified_hash") @db.Char(64)
+  rejectReason  String?  @map("reject_reason") @db.VarChar(300)
+  rejectedStage String?  @map("rejected_stage") @db.VarChar(30)
+  updatedBy     BigInt?  @map("updated_by") @db.UnsignedBigInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  submission AcademicSubmission @relation(fields: [submissionId], references: [id])
+  enrollment StudentEnrollment  @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([submissionId, enrollmentId])
+  @@unique([enrollmentId, period])
+  @@map("attendance_monthly")
+}
+
+/// Append-only log of every workflow decision (submit, verify, approve, reject rows, reopen).
+model VerificationAction {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  submissionId  BigInt   @map("submission_id") @db.UnsignedBigInt
+  revision      Int      @db.UnsignedInt
+  stage         String   @db.VarChar(30)
+  action        String   @db.VarChar(20)
+  actorUserId   BigInt   @map("actor_user_id") @db.UnsignedBigInt
+  actorName     String?  @map("actor_name") @db.VarChar(150)
+  fromStatus    String?  @map("from_status") @db.VarChar(30)
+  toStatus      String?  @map("to_status") @db.VarChar(30)
+  rowCount      Int?     @map("row_count")
+  enrollmentIds Json?    @map("enrollment_ids")
+  comment       String?  @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  submission AcademicSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId, createdAt])
+  @@map("verification_actions")
+}
+
+/// Class teacher's remarks for a report card (progress, conduct, remark).
+model StudentRemark {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  enrollmentId BigInt   @map("enrollment_id") @db.UnsignedBigInt
+  term         String   @db.VarChar(10)
+  progress     String?  @db.VarChar(60)
+  conduct      String?  @db.VarChar(60)
+  remark       String?  @db.VarChar(300)
+  updatedBy    BigInt?  @map("updated_by") @db.UnsignedBigInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  enrollment StudentEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([enrollmentId, term])
+  @@map("student_remarks")
+}
+
+/// Official report card: a frozen snapshot of APPROVED data. Generated only when every source is approved.
+model ReportCard {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  version      Int       @default(1) @db.UnsignedInt
+  enrollmentId BigInt    @map("enrollment_id") @db.UnsignedBigInt
+  term         String    @db.VarChar(10)
+  status       String    @default("GENERATED") @db.VarChar(20)
+  snapshot     Json
+  generatedBy  BigInt    @map("generated_by") @db.UnsignedBigInt
+  generatedAt  DateTime  @map("generated_at") @db.DateTime(3)
+  publishedBy  BigInt?   @map("published_by") @db.UnsignedBigInt
+  publishedAt  DateTime? @map("published_at") @db.DateTime(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+
+  enrollment StudentEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([enrollmentId, term])
+  @@map("report_cards")
+}
+
+// =====================================================================================================
+// Fees: one consolidated annual fee per class and academic year → one ledger per student per year →
+// receipts. Next year's ledger carries forward last year's unpaid balance as "previous year outstanding".
+// =====================================================================================================
+
+/// The annual fee of one class in one academic year. Classes are per-year rows, so every year keeps its own fees.
+model ClassFee {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  classId        BigInt   @unique @map("class_id") @db.UnsignedBigInt
+  amount         Decimal  @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  schoolClass SchoolClass @relation(fields: [classId], references: [id])
+
+  @@index([academicYearId])
+  @@map("class_fees")
+}
+
+/// A student's fee account for one academic year (one per enrollment).
+model StudentFeeLedger {
+  id                  BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  version             Int      @default(1) @db.UnsignedInt
+  studentId           BigInt   @map("student_id") @db.UnsignedBigInt
+  academicYearId      BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  enrollmentId        BigInt   @unique @map("enrollment_id") @db.UnsignedBigInt
+  /// Carried forward from the previous year's ledger; on a student's first ledger it is the opening balance typed in by the office.
+  previousOutstanding Decimal  @default(0) @map("previous_outstanding") @db.Decimal(12, 2)
+  openingReason       String?  @map("opening_reason") @db.VarChar(200)
+  /// The class's annual fee for this year.
+  yearFee             Decimal  @default(0) @map("year_fee") @db.Decimal(12, 2)
+  concession          Decimal  @default(0) @db.Decimal(12, 2)
+  concessionReason    String?  @map("concession_reason") @db.VarChar(200)
+  /// Sum of the student's active late fees (penalties) for this year.
+  penalty             Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt           DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy           BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy           BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  enrollment StudentEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([studentId, academicYearId])
+  @@index([academicYearId])
+  @@map("student_fee_ledgers")
+}
+
+/// A receipt. Never deleted: a mistake is CANCELLED with a reason and stops counting.
+/// The ledger figures at the moment of payment are kept on the receipt, so a reprint shows exactly what was printed.
+model FeePayment {
+  id                  BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId            BigInt    @map("school_id") @db.UnsignedBigInt
+  academicYearId      BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  enrollmentId        BigInt    @map("enrollment_id") @db.UnsignedBigInt
+  receiptNo           String    @map("receipt_no") @db.VarChar(30)
+  /// The physical receipt book number, required when the payment date is before the entry date (backdated).
+  manualReceiptNo     String?   @map("manual_receipt_no") @db.VarChar(40)
+  isBackdated         Boolean   @default(false) @map("is_backdated")
+  paidOn              DateTime  @map("paid_on") @db.Date
+  amount              Decimal   @db.Decimal(12, 2)
+  mode                String    @db.VarChar(20)
+  reference           String?   @db.VarChar(60)
+  payerName           String?   @map("payer_name") @db.VarChar(150)
+  remarks             String?   @db.VarChar(300)
+  previousOutstanding Decimal   @default(0) @map("previous_outstanding") @db.Decimal(12, 2)
+  currentYearFee      Decimal   @default(0) @map("current_year_fee") @db.Decimal(12, 2)
+  concession          Decimal   @default(0) @db.Decimal(12, 2)
+  penalty             Decimal   @default(0) @db.Decimal(12, 2)
+  totalPayable        Decimal   @default(0) @map("total_payable") @db.Decimal(12, 2)
+  paidBefore          Decimal   @default(0) @map("paid_before") @db.Decimal(12, 2)
+  balanceAfter        Decimal   @map("balance_after") @db.Decimal(12, 2)
+  status              String    @default("VALID") @db.VarChar(20)
+  cancelReason        String?   @map("cancel_reason") @db.VarChar(300)
+  cancelledBy         BigInt?   @map("cancelled_by") @db.UnsignedBigInt
+  cancelledAt         DateTime? @map("cancelled_at") @db.DateTime(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy           BigInt    @map("created_by") @db.UnsignedBigInt
+
+  school     School            @relation(fields: [schoolId], references: [id])
+  enrollment StudentEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([schoolId, receiptNo])
+  @@index([schoolId, manualReceiptNo])
+  @@index([academicYearId, paidOn])
+  @@index([enrollmentId])
+  @@map("fee_payments")
+}
+
+// =====================================================================================================
+// Office: staff documents, expenses and payment vouchers (kept separate from fee collection).
+// =====================================================================================================
+
+model StaffDocument {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  staffId   BigInt   @map("staff_id") @db.UnsignedBigInt
+  title     String   @db.VarChar(100)
+  fileId    BigInt   @map("file_id") @db.UnsignedBigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@map("staff_documents")
+}
+
+/// Electricity, water, staff salary … Categories used by a voucher are never deleted, only made inactive.
+model ExpenseCategory {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId  BigInt   @map("school_id") @db.UnsignedBigInt
+  code      String   @db.VarChar(30)
+  name      String   @db.VarChar(80)
+  isSalary  Boolean  @default(false) @map("is_salary")
+  isSystem  Boolean  @default(false) @map("is_system")
+  sortOrder Int      @default(0) @map("sort_order") @db.SmallInt
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  expenses Expense[]
+
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@map("expense_categories")
+}
+
+/// One expense = one payment voucher. Never deleted: rejected / cancelled vouchers stay with their reason.
+model Expense {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  version        Int       @default(1) @db.UnsignedInt
+  schoolId       BigInt    @map("school_id") @db.UnsignedBigInt
+  voucherNo      String    @map("voucher_no") @db.VarChar(30)
+  academicYearId BigInt?   @map("academic_year_id") @db.UnsignedBigInt
+  expenseDate    DateTime  @map("expense_date") @db.Date
+  categoryId     BigInt    @map("category_id") @db.UnsignedBigInt
+  title          String    @db.VarChar(150)
+  description    String    @db.Text
+  paidTo         String    @map("paid_to") @db.VarChar(150)
+  amount         Decimal   @db.Decimal(12, 2)
+  mode           String    @db.VarChar(20)
+  reference      String?   @db.VarChar(80)
+  billNo         String?   @map("bill_no") @db.VarChar(60)
+  remarks        String?   @db.Text
+  staffId        BigInt?   @map("staff_id") @db.UnsignedBigInt
+  salaryMonth    Int?      @map("salary_month") @db.TinyInt
+  salaryYear     Int?      @map("salary_year") @db.SmallInt
+  monthlySalary  Decimal?  @map("monthly_salary") @db.Decimal(12, 2)
+  status         String    @default("PENDING") @db.VarChar(20)
+  approvedBy     BigInt?   @map("approved_by") @db.UnsignedBigInt
+  approvedAt     DateTime? @map("approved_at") @db.DateTime(3)
+  rejectedBy     BigInt?   @map("rejected_by") @db.UnsignedBigInt
+  rejectedAt     DateTime? @map("rejected_at") @db.DateTime(3)
+  rejectReason   String?   @map("reject_reason") @db.VarChar(300)
+  cancelledBy    BigInt?   @map("cancelled_by") @db.UnsignedBigInt
+  cancelledAt    DateTime? @map("cancelled_at") @db.DateTime(3)
+  cancelReason   String?   @map("cancel_reason") @db.VarChar(300)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy      BigInt    @map("created_by") @db.UnsignedBigInt
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  category    ExpenseCategory     @relation(fields: [categoryId], references: [id])
+  staff       Staff?              @relation(fields: [staffId], references: [id])
+  attachments ExpenseAttachment[]
+
+  @@unique([schoolId, voucherNo])
+  @@index([schoolId, expenseDate])
+  @@index([schoolId, status])
+  @@index([staffId, salaryYear, salaryMonth])
+  @@map("expenses")
+}
+
+model ExpenseAttachment {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  expenseId BigInt   @map("expense_id") @db.UnsignedBigInt
+  fileId    BigInt   @map("file_id") @db.UnsignedBigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy BigInt?  @map("created_by") @db.UnsignedBigInt
+
+  expense Expense @relation(fields: [expenseId], references: [id])
+
+  @@index([expenseId])
+  @@map("expense_attachments")
+}
+
+/// Fee certificate ("fee structure letter") given to a parent: the annual fee of the student's class for a year.
+/// Every certificate issued is kept, so it can be reprinted and verified by its number.
+model FeeCertificate {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId       BigInt   @map("school_id") @db.UnsignedBigInt
+  certificateNo  String   @map("certificate_no") @db.VarChar(30)
+  studentId      BigInt   @map("student_id") @db.UnsignedBigInt
+  enrollmentId   BigInt   @map("enrollment_id") @db.UnsignedBigInt
+  academicYearId BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  /// What was printed (kept as issued, even if the class fee changes later).
+  studentName    String   @map("student_name") @db.VarChar(250)
+  className      String   @map("class_name") @db.VarChar(60)
+  mediumName     String   @map("medium_name") @db.VarChar(60)
+  yearName       String   @map("year_name") @db.VarChar(20)
+  amount         Decimal  @db.Decimal(12, 2)
+  /// Concession and fees already paid towards that year's fee when issued (null on certificates from before).
+  concession     Decimal? @db.Decimal(12, 2)
+  paidAmount     Decimal? @map("paid_amount") @db.Decimal(12, 2)
+  issuedAt       DateTime @default(now()) @map("issued_at") @db.DateTime(3)
+  issuedBy       BigInt   @map("issued_by") @db.UnsignedBigInt
+
+  @@unique([schoolId, certificateNo])
+  @@index([studentId])
+  @@map("fee_certificates")
+}
+
+/// One division's Greensheet for a year: DRAFT until the Headmaster approves it (then locked).
+model Greensheet {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  sectionId      BigInt    @unique @map("section_id") @db.UnsignedBigInt
+  status         String    @default("DRAFT") @db.VarChar(20)
+  approvedBy     BigInt?   @map("approved_by") @db.UnsignedBigInt
+  approvedByName String?   @map("approved_by_name") @db.VarChar(150)
+  approvedAt     DateTime? @map("approved_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  section Section @relation(fields: [sectionId], references: [id])
+
+  @@map("greensheets")
+}
+
+/// The Headmaster's result decision for one student (PASS / PROMOTED / Re-Exam / Detained) and grace marks.
+model GreensheetResult {
+  id           BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  enrollmentId BigInt   @unique @map("enrollment_id") @db.UnsignedBigInt
+  result       String?  @db.VarChar(20)
+  grace        Json?
+  remark       String?  @db.VarChar(200)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  updatedBy    BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  enrollment StudentEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@map("greensheet_results")
+}
+
+/// Promotion prepared by the office or an operator, applied when the Headmaster verifies it.
+model PromotionRequest {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId        BigInt    @map("school_id") @db.UnsignedBigInt
+  fromSectionId   BigInt    @map("from_section_id") @db.UnsignedBigInt
+  toSectionId     BigInt?   @map("to_section_id") @db.UnsignedBigInt
+  detainSectionId BigInt?   @map("detain_section_id") @db.UnsignedBigInt
+  items           Json
+  status          String    @default("PENDING") @db.VarChar(20)
+  requestedBy     BigInt    @map("requested_by") @db.UnsignedBigInt
+  requestedAt     DateTime  @default(now()) @map("requested_at") @db.DateTime(3)
+  decidedBy       BigInt?   @map("decided_by") @db.UnsignedBigInt
+  decidedAt       DateTime? @map("decided_at") @db.DateTime(3)
+  note            String?   @db.VarChar(300)
+  result          Json?
+
+  fromSection Section @relation(fields: [fromSectionId], references: [id])
+
+  @@index([schoolId, status])
+  @@index([fromSectionId, status])
+  @@map("promotion_requests")
+}
+
+/// A blank mark sheet as the Headmaster generated it (snapshot of subjects, maximum marks and students).
+model BlankMarkSheet {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  schoolId       BigInt   @map("school_id") @db.UnsignedBigInt
+  sheetNo        String   @map("sheet_no") @db.VarChar(30)
+  examId         BigInt   @map("exam_id") @db.UnsignedBigInt
+  sectionId      BigInt   @map("section_id") @db.UnsignedBigInt
+  classSubjectId BigInt?  @map("class_subject_id") @db.UnsignedBigInt
+  withNames      Boolean  @default(false) @map("with_names")
+  subjects       String   @db.VarChar(500)
+  data           Json?
+  generatedBy    BigInt   @map("generated_by") @db.UnsignedBigInt
+  generatedAt    DateTime @default(now()) @map("generated_at") @db.DateTime(3)
+  updatedAt      DateTime? @map("updated_at") @db.DateTime(3)
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  exam    Exam    @relation(fields: [examId], references: [id])
+  section Section @relation(fields: [sectionId], references: [id])
+
+  @@unique([schoolId, sheetNo])
+  @@unique([examId, sectionId, classSubjectId])
+  @@index([schoolId, generatedAt])
+  @@map("blank_mark_sheets")
+}
+
+/// Monthly performance: a subject teacher scores each student of a division on 9 skills (0-5) once a month.
+model MonthlyPerformance {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt    @map("academic_year_id") @db.UnsignedBigInt
+  sectionId      BigInt    @map("section_id") @db.UnsignedBigInt
+  classSubjectId BigInt    @map("class_subject_id") @db.UnsignedBigInt
+  month          String    @db.Char(7)
+  /// DRAFT (teacher filling) / SUBMITTED (locked) / RETURNED (sent back with a note)
+  status         String    @default("DRAFT") @db.VarChar(20)
+  /// { "<enrollmentId>": { "READING": 4, ... } }
+  scores         Json?
+  submittedBy    BigInt?   @map("submitted_by") @db.UnsignedBigInt
+  submittedAt    DateTime? @map("submitted_at") @db.DateTime(3)
+  returnNote     String?   @map("return_note") @db.VarChar(500)
+  returnedBy     BigInt?   @map("returned_by") @db.UnsignedBigInt
+  returnedAt     DateTime? @map("returned_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?   @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?   @map("updated_by") @db.UnsignedBigInt
+
+  section      Section      @relation(fields: [sectionId], references: [id])
+  classSubject ClassSubject @relation(fields: [classSubjectId], references: [id])
+
+  @@unique([sectionId, classSubjectId, month])
+  @@index([academicYearId, month])
+  @@map("monthly_performance")
+}
+
+
+/// A fee due date of the year: by this date every student must have paid at least the minimums up to it (in total).
+model FeeInstalment {
+  id             BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  academicYearId BigInt   @map("academic_year_id") @db.UnsignedBigInt
+  seq            Int      @db.UnsignedInt
+  label          String   @db.VarChar(40)
+  dueDate        DateTime @map("due_date") @db.Date
+  /// Minimum to pay by this date (for every class unless the class has its own amount).
+  amount         Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  createdBy      BigInt?  @map("created_by") @db.UnsignedBigInt
+  updatedBy      BigInt?  @map("updated_by") @db.UnsignedBigInt
+
+  amounts   FeeInstalmentAmount[]
+  penalties FeePenalty[]
+
+  @@unique([academicYearId, seq])
+  @@map("fee_instalments")
+}
+
+/// A class's own minimum for one due date, where it differs from the amount for all classes.
+model FeeInstalmentAmount {
+  id           BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  instalmentId BigInt  @map("instalment_id") @db.UnsignedBigInt
+  classId      BigInt  @map("class_id") @db.UnsignedBigInt
+  amount       Decimal @db.Decimal(12, 2)
+
+  instalment FeeInstalment @relation(fields: [instalmentId], references: [id], onDelete: Cascade)
+
+  @@unique([instalmentId, classId])
+  @@index([classId])
+  @@map("fee_instalment_amounts")
+}
+
+/// Late fee for an instalment not paid by its due date. Never deleted: removed = WAIVED with a reason.
+model FeePenalty {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  ledgerId     BigInt    @map("ledger_id") @db.UnsignedBigInt
+  instalmentId BigInt    @map("instalment_id") @db.UnsignedBigInt
+  amount       Decimal   @db.Decimal(12, 2)
+  /// ACTIVE / WAIVED
+  status       String    @default("ACTIVE") @db.VarChar(20)
+  waiveReason  String?   @map("waive_reason") @db.VarChar(300)
+  waivedBy     BigInt?   @map("waived_by") @db.UnsignedBigInt
+  waivedAt     DateTime? @map("waived_at") @db.DateTime(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  createdBy    BigInt?   @map("created_by") @db.UnsignedBigInt
+
+  instalment FeeInstalment @relation(fields: [instalmentId], references: [id])
+
+  @@unique([ledgerId, instalmentId])
+  @@index([instalmentId])
+  @@map("fee_penalties")
+}

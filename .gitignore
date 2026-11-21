@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+apps/api/storage/
+# School-provided files contain student personal data - never commit
+school-files/
+apps/api/src/generated/
+
+# Real student lists for import (personal data)
+student-lists/
+*.tsbuildinfo
+# Contains real student names and phone numbers from the school's files - keep it on this PC only
+docs/00-school-data-findings.md
