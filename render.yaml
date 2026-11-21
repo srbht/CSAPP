@@ -17,6 +17,9 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
+      # The free plan has 512 MB: keep Node's memory well below it (otherwise Render stops the app and shows 502).
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=320
       - key: DATABASE_URL
         sync: false
       - key: JWT_ACCESS_SECRET
